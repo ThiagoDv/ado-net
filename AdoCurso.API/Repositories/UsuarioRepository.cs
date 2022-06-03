@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
+using System.Linq;
 
 namespace AdoCurso.API.Repositories
 {
@@ -54,13 +55,10 @@ namespace AdoCurso.API.Repositories
 
         public Usuario GetById(int id)
         {
-            Usuario usuario = new Usuario();
-            Contato contato = new Contato();
-
             try
             {
-                SqlCommand command = new SqlCommand($"SELECT * FROM Usuarios u LEFT JOIN Contatos c " +
-                                                    $"ON c.UsuarioId = u.Id WHERE u.Id = @Id;",
+                SqlCommand command = new SqlCommand($"SELECT * FROM Usuarios u LEFT JOIN Contatos c ON c.UsuarioId = u.Id " +
+                                                    $"LEFT JOIN EnderecosEntrega en ON en.UsuarioId = u.Id WHERE u.Id = @Id;",
                                                     (SqlConnection)_connectionDB);
                 // Segurança contra SQL Injection
                 command.Parameters.AddWithValue("@Id", id);
@@ -69,34 +67,70 @@ namespace AdoCurso.API.Repositories
 
                 SqlDataReader reader = command.ExecuteReader();
 
+                Dictionary<int, Usuario> usuarios = new Dictionary<int, Usuario>();
+
                 while (reader.Read())
                 {
-                    usuario.Id = reader.GetInt32("Id");
-                    usuario.Nome = reader.GetString("Nome");
-                    usuario.Email = reader.GetString("Email");
-                    usuario.Sexo = reader.GetString("Sexo");
-                    usuario.RG = reader.GetString("RG");
-                    usuario.CPF = reader.GetString("CPF");
-                    usuario.NomeMae = reader.GetString("NomeMae");
-                    usuario.SituacaoCadastro = reader.GetString("SituacaoCadastro");
-                    usuario.DataCadastro = reader.GetDateTimeOffset(8);
+                    Usuario usuario = new Usuario();
+                    if (!(usuarios.ContainsKey(reader.GetInt32(0)))) // Irá validar se no dicionário possui algum usuário com aquele Id,
+                                                                     // caso não tenha, ele irá criar um. 
+                    {
+                        usuario.Id = reader.GetInt32(0); // Irá pegar a primeira coluna que é o ID da tabela Usuario
+                        usuario.Nome = reader.GetString("Nome");
+                        usuario.Email = reader.GetString("Email");
+                        usuario.Sexo = reader.GetString("Sexo");
+                        usuario.RG = reader.GetString("RG");
+                        usuario.CPF = reader.GetString("CPF");
+                        usuario.NomeMae = reader.GetString("NomeMae");
+                        usuario.SituacaoCadastro = reader.GetString("SituacaoCadastro");
+                        usuario.DataCadastro = reader.GetDateTimeOffset(8);
 
-                    contato.Id = reader.GetInt32(9); // Irá pegar a nona coluna da consulta que é o ID do contato.
-                    contato.Celular = reader.GetString("Celular");
-                    contato.Telefone = reader.GetString("Telefone");
-                    contato.UsuarioId = usuario.Id;
+                        Contato contato = new Contato();
+                        contato.Id = reader.GetInt32(9); // Irá pegar a nona coluna da consulta que é o ID do contato.
+                        contato.UsuarioId = usuario.Id;
+                        contato.Celular = reader.GetString("Celular");
+                        contato.Telefone = reader.GetString("Telefone");
 
-                    usuario.Contato = contato; // Atribui o contato buscado no banco e atribui a propriedade Contato do objeto Usuarios.
+                        // Atribui o contato encontrado no banco e atribui a propriedade Contato do objeto Usuario.
+                        usuario.Contato = contato;
 
-                    return usuario;
+                        // Atribui o usuário criado ao dicionário
+                        usuarios.Add(usuario.Id, usuario);
+                    }
+
+                    else
+                    {
+                        usuario = usuarios[reader.GetInt32(0)]; // Irá atribuir ao objeto Usuario o usuário que ele encontrou no dicionario.
+                    }
+
+                    EnderecoEntrega enderecoEntrega = new EnderecoEntrega();
+                    enderecoEntrega.Id = reader.GetInt32(13);
+                    enderecoEntrega.UsuarioId = usuario.Id;
+                    enderecoEntrega.NomeEndereco = reader.GetString("NomeEndereco");
+                    enderecoEntrega.CEP = reader.GetString("CEP");
+                    enderecoEntrega.Estado = reader.GetString("Estado");
+                    enderecoEntrega.Cidade = reader.GetString("Cidade");
+                    enderecoEntrega.Bairro = reader.GetString("Bairro");
+                    enderecoEntrega.Endereco = reader.GetString("Endereco");
+                    enderecoEntrega.Numero = reader.GetString("Numero");
+                    enderecoEntrega.Complemento = reader.GetString("Complemento");
+
+                    // irá validar se o endereço de entrega for nulo no usuário, ele irá criar uma lista de endereço de entregas
+                    // para aquele usuario, se não for, ele só irá atribuir o novo endereço.
+                    usuario.EnderecosEntrega = (usuario.EnderecosEntrega == null) ? new List<EnderecoEntrega>() : usuario.EnderecosEntrega;
+                    usuario.EnderecosEntrega.Add(enderecoEntrega);
                 }
+
+                return usuarios[usuarios.Keys.First()];
+            }
+            catch (Exception)
+            {
+                return null;
             }
             finally
             {
                 _connectionDB.Close();
             }
-
-            return null;
         }
 
         public void Insert(Usuario usuario)
@@ -164,7 +198,7 @@ namespace AdoCurso.API.Repositories
 
         public void Delete(int id)
         {
-            try 
+            try
             {
                 SqlCommand command = new SqlCommand($"DELETE Usuarios WHERE Usuarios.Id = @Id;",
                                                     (SqlConnection)_connectionDB);
@@ -173,8 +207,8 @@ namespace AdoCurso.API.Repositories
 
                 _connectionDB.Open();
                 command.ExecuteNonQuery();
-            } 
-            finally 
+            }
+            finally
             {
                 _connectionDB.Close();
             }

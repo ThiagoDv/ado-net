@@ -11,6 +11,7 @@ namespace AdoCurso.API.Models.Entities
         public string RG { get; set; }
         public string CPF { get; set; }
         public string NomeMae { get; set; }
+        public Contato Contato { get; set; }
         public string SituacaoCadastro { get; set; }
         public DateTimeOffset DataCadastro { get; set; }
     }

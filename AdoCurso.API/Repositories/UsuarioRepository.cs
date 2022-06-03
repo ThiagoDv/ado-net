@@ -60,7 +60,7 @@ namespace AdoCurso.API.Repositories
             try
             {
                 SqlCommand command = new SqlCommand($"SELECT * FROM Usuarios u LEFT JOIN Contatos c " +
-                                                    $"ON c.UsuarioId = u.Id WHERE u.Id = 1;",
+                                                    $"ON c.UsuarioId = u.Id WHERE u.Id = @Id;",
                                                     (SqlConnection)_connectionDB);
                 // Segurança contra SQL Injection
                 command.Parameters.AddWithValue("@Id", id);
@@ -85,6 +85,8 @@ namespace AdoCurso.API.Repositories
                     contato.Celular = reader.GetString("Celular");
                     contato.Telefone = reader.GetString("Telefone");
                     contato.UsuarioId = usuario.Id;
+
+                    usuario.Contato = contato; // Atribui o contato buscado no banco e atribui a propriedade Contato do objeto Usuarios.
 
                     return usuario;
                 }

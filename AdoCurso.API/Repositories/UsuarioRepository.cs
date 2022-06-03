@@ -55,14 +55,15 @@ namespace AdoCurso.API.Repositories
         public Usuario GetById(int id)
         {
             Usuario usuario = new Usuario();
+            Contato contato = new Contato();
 
             try
             {
-                SqlCommand command = new SqlCommand($"SELECT * FROM Usuarios WHERE Id = @Id",
+                SqlCommand command = new SqlCommand($"SELECT * FROM Usuarios u LEFT JOIN Contatos c " +
+                                                    $"ON c.UsuarioId = u.Id WHERE u.Id = 1;",
                                                     (SqlConnection)_connectionDB);
                 // Segurança contra SQL Injection
                 command.Parameters.AddWithValue("@Id", id);
-
 
                 _connectionDB.Open();
 
@@ -79,6 +80,11 @@ namespace AdoCurso.API.Repositories
                     usuario.NomeMae = reader.GetString("NomeMae");
                     usuario.SituacaoCadastro = reader.GetString("SituacaoCadastro");
                     usuario.DataCadastro = reader.GetDateTimeOffset(8);
+
+                    contato.Id = reader.GetInt32(9); // Irá pegar a nona coluna da consulta que é o ID do contato.
+                    contato.Celular = reader.GetString("Celular");
+                    contato.Telefone = reader.GetString("Telefone");
+                    contato.UsuarioId = usuario.Id;
 
                     return usuario;
                 }

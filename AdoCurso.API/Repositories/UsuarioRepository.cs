@@ -57,8 +57,12 @@ namespace AdoCurso.API.Repositories
         {
             try
             {
-                SqlCommand command = new SqlCommand($"SELECT * FROM Usuarios u LEFT JOIN Contatos c ON c.UsuarioId = u.Id " +
-                                                    $"LEFT JOIN EnderecosEntrega en ON en.UsuarioId = u.Id WHERE u.Id = @Id;",
+                SqlCommand command = new SqlCommand($"SELECT * FROM Usuarios u LEFT JOIN " +
+                                                    $"Contatos c ON c.UsuarioId = u.Id LEFT JOIN " +
+                                                    $"EnderecosEntrega en ON en.UsuarioId = u.Id LEFT JOIN " +
+                                                    $"UsuariosDepartamentos ud ON ud.UsuarioId = u.Id LEFT JOIN " +
+                                                    $"Departamentos d ON ud.Id = d.Id " +
+                                                    $"WHERE u.Id = @Id;",
                                                     (SqlConnection)_connectionDB);
                 // Segurança contra SQL Injection
                 command.Parameters.AddWithValue("@Id", id);
@@ -118,7 +122,22 @@ namespace AdoCurso.API.Repositories
                     // irá validar se o endereço de entrega for nulo no usuário, ele irá criar uma lista de endereço de entregas
                     // para aquele usuario, se não for, ele só irá atribuir o novo endereço.
                     usuario.EnderecosEntrega = (usuario.EnderecosEntrega == null) ? new List<EnderecoEntrega>() : usuario.EnderecosEntrega;
-                    usuario.EnderecosEntrega.Add(enderecoEntrega);
+
+                    if (usuario.EnderecosEntrega.FirstOrDefault(point => point.Id == enderecoEntrega.Id) == null)
+                    {
+                        usuario.EnderecosEntrega.Add(enderecoEntrega);
+                    }
+
+                    Departamento departamento = new Departamento();
+                    departamento.Id = reader.GetInt32(26);
+                    departamento.Nome = reader.GetString(27);
+
+                    usuario.Departamentos = (usuario.Departamentos == null) ? new List<Departamento>() : usuario.Departamentos;
+
+                    if (usuario.Departamentos.FirstOrDefault(point => point.Id == departamento.Id) == null)
+                    {
+                        usuario.Departamentos.Add(departamento);
+                    }
                 }
 
                 return usuarios[usuarios.Keys.First()];
@@ -155,6 +174,18 @@ namespace AdoCurso.API.Repositories
 
                 _connectionDB.Open();
                 usuario.Id = (int)command.ExecuteScalar(); // irá atribuir o último id da tabela ao id do usuario recem criado.
+
+                command.CommandText = $"INSERT INTO Contatos(UsuarioId, Telefone, Celular) " +
+                                      $"VALUES (@UsuarioId, @Telefone, @Celular) " +
+                                      $"SELECT CAST(scope_identity() AS int);";
+
+                command.Parameters.AddWithValue("@UsuarioId", usuario.Id);
+                command.Parameters.AddWithValue("@Telefone", usuario.Contato.Telefone);
+                command.Parameters.AddWithValue("@Celular", usuario.Contato.Celular);
+
+                usuario.Contato.UsuarioId = usuario.Id;
+                usuario.Contato.Id = (int)command.ExecuteScalar();
+
             }
             finally
             {

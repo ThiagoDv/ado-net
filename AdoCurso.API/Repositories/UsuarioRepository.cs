@@ -156,35 +156,60 @@ namespace AdoCurso.API.Repositories
         {
             try
             {
-                SqlCommand command = new SqlCommand($"INSERT INTO Usuarios(Nome, Email, Sexo, RG, CPF, NomeMae, SituacaoCadastro, DataCadastro) " +
+                // ADICIONANDO USUARIO
+                SqlCommand commandUsuario = new SqlCommand($"INSERT INTO Usuarios(Nome, Email, Sexo, RG, CPF, NomeMae, SituacaoCadastro, DataCadastro) " +
                                                     $"VALUES(@Nome, @Email, @Sexo, @RG, @CPF, @NomeMae, @SituacaoCadastro, @DataCadastro);" +
                                                     $"SELECT CAST(scope_identity() AS int);", // Irá pegar o último id do escopo da tabela Usuarios.
                                                     (SqlConnection)_connectionDB);
 
                 // Segurança contra SQL Injection
-                command.Parameters.AddWithValue("@Nome", usuario.Nome);
-                command.Parameters.AddWithValue("@Email", usuario.Email);
-                command.Parameters.AddWithValue("@Sexo", usuario.Sexo);
-                command.Parameters.AddWithValue("@RG", usuario.RG);
-                command.Parameters.AddWithValue("@CPF", usuario.CPF);
-                command.Parameters.AddWithValue("@NomeMae", usuario.NomeMae);
-                command.Parameters.AddWithValue("@SituacaoCadastro", usuario.SituacaoCadastro);
-                command.Parameters.AddWithValue("@DataCadastro", usuario.DataCadastro);
+                commandUsuario.Parameters.AddWithValue("@Nome", usuario.Nome);
+                commandUsuario.Parameters.AddWithValue("@Email", usuario.Email);
+                commandUsuario.Parameters.AddWithValue("@Sexo", usuario.Sexo);
+                commandUsuario.Parameters.AddWithValue("@RG", usuario.RG);
+                commandUsuario.Parameters.AddWithValue("@CPF", usuario.CPF);
+                commandUsuario.Parameters.AddWithValue("@NomeMae", usuario.NomeMae);
+                commandUsuario.Parameters.AddWithValue("@SituacaoCadastro", usuario.SituacaoCadastro);
+                commandUsuario.Parameters.AddWithValue("@DataCadastro", usuario.DataCadastro);
 
 
                 _connectionDB.Open();
-                usuario.Id = (int)command.ExecuteScalar(); // irá atribuir o último id da tabela ao id do usuario recem criado.
+                usuario.Id = (int)commandUsuario.ExecuteScalar(); // irá atribuir o último id da tabela ao id do usuario recem criado.
+                
+                // ADICIONANDO CONTATO
+                SqlCommand commandContato = new SqlCommand($"INSERT INTO Contatos(UsuarioId, Telefone, Celular) " +
+                                                           $"VALUES (@UsuarioId, @Telefone, @Celular) " +
+                                                           $"SELECT CAST(scope_identity() AS int);",
+                                                           (SqlConnection)_connectionDB);
 
-                command.CommandText = $"INSERT INTO Contatos(UsuarioId, Telefone, Celular) " +
-                                      $"VALUES (@UsuarioId, @Telefone, @Celular) " +
-                                      $"SELECT CAST(scope_identity() AS int);";
-
-                command.Parameters.AddWithValue("@UsuarioId", usuario.Id);
-                command.Parameters.AddWithValue("@Telefone", usuario.Contato.Telefone);
-                command.Parameters.AddWithValue("@Celular", usuario.Contato.Celular);
+                commandContato.Parameters.AddWithValue("@UsuarioId", usuario.Id);
+                commandContato.Parameters.AddWithValue("@Telefone", usuario.Contato.Telefone);
+                commandContato.Parameters.AddWithValue("@Celular", usuario.Contato.Celular);
 
                 usuario.Contato.UsuarioId = usuario.Id;
-                usuario.Contato.Id = (int)command.ExecuteScalar();
+                usuario.Contato.Id = (int)commandContato.ExecuteScalar();
+
+                // ADICIONANDO ENDEREÇO
+                foreach (var endereco in usuario.EnderecosEntrega)
+                {
+
+                    SqlCommand commandEndereco = new SqlCommand($"INSERT INTO EnderecosEntrega(UsuarioId, NomeEndereco, CEP, Estado, Cidade, Bairro, Endereco, Numero, Complemento) " +
+                                          $"VALUES (@UsuarioId, @NomeEndereco, @CEP, @Estado, @Cidade, @Bairro, @Endereco, @Numero, @Complemento) " +
+                                          $"SELECT CAST(scope_identity() AS int);",
+                                          (SqlConnection)_connectionDB);
+
+                    commandEndereco.Parameters.AddWithValue("@UsuarioId", usuario.Id);
+                    commandEndereco.Parameters.AddWithValue("@NomeEndereco", endereco.NomeEndereco);
+                    commandEndereco.Parameters.AddWithValue("@CEP", endereco.CEP);
+                    commandEndereco.Parameters.AddWithValue("@Estado", endereco.Estado);
+                    commandEndereco.Parameters.AddWithValue("@Cidade", endereco.Cidade);
+                    commandEndereco.Parameters.AddWithValue("@Bairro", endereco.Bairro);
+                    commandEndereco.Parameters.AddWithValue("@Endereco", endereco.Endereco);
+                    commandEndereco.Parameters.AddWithValue("@Numero", endereco.Numero);
+                    commandEndereco.Parameters.AddWithValue("@Complemento", endereco.Complemento);
+
+                    endereco.Id = (int)commandEndereco.ExecuteScalar();
+                }
 
             }
             finally

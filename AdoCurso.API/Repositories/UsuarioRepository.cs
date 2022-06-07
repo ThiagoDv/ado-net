@@ -154,13 +154,16 @@ namespace AdoCurso.API.Repositories
 
         public void Insert(Usuario usuario)
         {
+            _connectionDB.Open();
+            SqlTransaction transaction = (SqlTransaction)_connectionDB.BeginTransaction(); // Instanciará uma transaction
             try
             {
-                // ADICIONANDO USUARIO
                 SqlCommand commandUsuario = new SqlCommand($"INSERT INTO Usuarios(Nome, Email, Sexo, RG, CPF, NomeMae, SituacaoCadastro, DataCadastro) " +
                                                     $"VALUES(@Nome, @Email, @Sexo, @RG, @CPF, @NomeMae, @SituacaoCadastro, @DataCadastro);" +
                                                     $"SELECT CAST(scope_identity() AS int);", // Irá pegar o último id do escopo da tabela Usuarios.
                                                     (SqlConnection)_connectionDB);
+
+                commandUsuario.Transaction = transaction;
 
                 // Segurança contra SQL Injection
                 commandUsuario.Parameters.AddWithValue("@Nome", usuario.Nome);
@@ -173,14 +176,15 @@ namespace AdoCurso.API.Repositories
                 commandUsuario.Parameters.AddWithValue("@DataCadastro", usuario.DataCadastro);
 
 
-                _connectionDB.Open();
                 usuario.Id = (int)commandUsuario.ExecuteScalar(); // irá atribuir o último id da tabela ao id do usuario recem criado.
-                
+
                 // ADICIONANDO CONTATO
                 SqlCommand commandContato = new SqlCommand($"INSERT INTO Contatos(UsuarioId, Telefone, Celular) " +
                                                            $"VALUES (@UsuarioId, @Telefone, @Celular) " +
                                                            $"SELECT CAST(scope_identity() AS int);",
                                                            (SqlConnection)_connectionDB);
+
+                commandContato.Transaction = transaction;
 
                 commandContato.Parameters.AddWithValue("@UsuarioId", usuario.Id);
                 commandContato.Parameters.AddWithValue("@Telefone", usuario.Contato.Telefone);
@@ -197,6 +201,8 @@ namespace AdoCurso.API.Repositories
                                           $"SELECT CAST(scope_identity() AS int);",
                                           (SqlConnection)_connectionDB);
 
+                    commandEndereco.Transaction = transaction;
+
                     commandEndereco.Parameters.AddWithValue("@UsuarioId", usuario.Id);
                     commandEndereco.Parameters.AddWithValue("@NomeEndereco", endereco.NomeEndereco);
                     commandEndereco.Parameters.AddWithValue("@CEP", endereco.CEP);
@@ -211,24 +217,37 @@ namespace AdoCurso.API.Repositories
                 }
 
                 // ADICIONANDO DEPARTAMENTO
-                foreach(var departamento in usuario.Departamentos) 
+                foreach (var departamento in usuario.Departamentos)
                 {
                     SqlCommand commandDepartamento = new SqlCommand($"INSERT INTO UsuariosDepartamentos(UsuarioId, DepartamentoId) " +
                                                                     $"VALUES (@UsuarioId, @DepartamentoId) " +
                                                                     $"SELECT CAST(scope_identity() AS int);",
                                                                     (SqlConnection)_connectionDB);
 
+                    commandDepartamento.Transaction = transaction;
+
                     commandDepartamento.Parameters.AddWithValue("@UsuarioId", usuario.Id);
                     commandDepartamento.Parameters.AddWithValue("@DepartamentoId", departamento.Id);
 
                     commandDepartamento.ExecuteNonQuery();
                 }
+
+                transaction.Commit();
+            }
+            catch
+            {
+                try
+                {
+                    transaction.Rollback();
+                }
+                catch
+                {
+                }
+                throw new Exception($"Erro ao inserir dados no banco!");
             }
             finally
             {
-
                 _connectionDB.Close();
-
             }
         }
 

@@ -3,6 +3,7 @@ using AdoCurso.API.Models.Interfaces;
 using AdoCurso.API.Repositories;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System;
 
 namespace AdoCurso.API.Controllers
 {
@@ -45,8 +46,15 @@ namespace AdoCurso.API.Controllers
         [Route("/Cadastrar")]
         public IActionResult Insert(Usuario usuario)
         {
-            _repository.Insert(usuario);
-            return Ok(usuario);
+            try
+            {
+                _repository.Insert(usuario);
+                return Ok(usuario);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
         [HttpPut]

@@ -192,7 +192,6 @@ namespace AdoCurso.API.Repositories
                 // ADICIONANDO ENDEREÇO
                 foreach (var endereco in usuario.EnderecosEntrega)
                 {
-
                     SqlCommand commandEndereco = new SqlCommand($"INSERT INTO EnderecosEntrega(UsuarioId, NomeEndereco, CEP, Estado, Cidade, Bairro, Endereco, Numero, Complemento) " +
                                           $"VALUES (@UsuarioId, @NomeEndereco, @CEP, @Estado, @Cidade, @Bairro, @Endereco, @Numero, @Complemento) " +
                                           $"SELECT CAST(scope_identity() AS int);",
@@ -211,6 +210,19 @@ namespace AdoCurso.API.Repositories
                     endereco.Id = (int)commandEndereco.ExecuteScalar();
                 }
 
+                // ADICIONANDO DEPARTAMENTO
+                foreach(var departamento in usuario.Departamentos) 
+                {
+                    SqlCommand commandDepartamento = new SqlCommand($"INSERT INTO UsuariosDepartamentos(UsuarioId, DepartamentoId) " +
+                                                                    $"VALUES (@UsuarioId, @DepartamentoId) " +
+                                                                    $"SELECT CAST(scope_identity() AS int);",
+                                                                    (SqlConnection)_connectionDB);
+
+                    commandDepartamento.Parameters.AddWithValue("@UsuarioId", usuario.Id);
+                    commandDepartamento.Parameters.AddWithValue("@DepartamentoId", departamento.Id);
+
+                    commandDepartamento.ExecuteNonQuery();
+                }
             }
             finally
             {

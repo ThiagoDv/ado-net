@@ -1,4 +1,4 @@
-# ADO .Net
+# Aplicação simples usando os conceitos do ADO .Net
 
 ## Sobre o projeto
 

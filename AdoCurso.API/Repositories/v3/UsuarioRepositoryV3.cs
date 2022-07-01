@@ -1,17 +1,18 @@
 ﻿using AdoCurso.API.Models.Entities;
 using AdoCurso.API.Models.Interfaces;
+using AdoCurso.API.Models.Interfaces.v3;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
 
-namespace AdoCurso.API.Repositories
+namespace AdoCurso.API.Repositories.v3
 {
-    public class UsuarioRepository : IUsuarioRepository
+    public class UsuarioRepositoryV3 : IUsuarioRepositoryV3
     {
         private readonly IDbConnection _connectionDB;
-        public UsuarioRepository()
+        public UsuarioRepositoryV3()
         {
             _connectionDB = new SqlConnection(@"Data Source=(localdb)\MSSQLLocalDB;Initial Catalog=AdoCurso;Integrated Security=True;Connect Timeout=30;Encrypt=False;TrustServerCertificate=False;ApplicationIntent=ReadWrite;MultiSubnetFailover=False;");
         }
@@ -22,8 +23,11 @@ namespace AdoCurso.API.Repositories
 
             try
             {
-                SqlCommand command = new SqlCommand("SELECT * FROM Usuarios",
-                                                    (SqlConnection)_connectionDB);
+                SqlCommand command = new SqlCommand("SelecionarUsuarios",
+                                                    (SqlConnection)_connectionDB)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
 
                 _connectionDB.Open();
 
@@ -158,6 +162,7 @@ namespace AdoCurso.API.Repositories
             SqlTransaction transaction = (SqlTransaction)_connectionDB.BeginTransaction(); // Instanciará uma transaction
             try
             {
+                #region Usuario
                 SqlCommand commandUsuario = new SqlCommand($"INSERT INTO Usuarios(Nome, Email, Sexo, RG, CPF, NomeMae, SituacaoCadastro, DataCadastro) " +
                                                     $"VALUES(@Nome, @Email, @Sexo, @RG, @CPF, @NomeMae, @SituacaoCadastro, @DataCadastro);" +
                                                     $"SELECT CAST(scope_identity() AS int);", // Irá pegar o último id do escopo da tabela Usuarios.
@@ -177,8 +182,9 @@ namespace AdoCurso.API.Repositories
 
 
                 usuario.Id = (int)commandUsuario.ExecuteScalar(); // irá atribuir o último id da tabela ao id do usuario recem criado.
+                #endregion
 
-                // ADICIONANDO CONTATO
+                #region Contato
                 SqlCommand commandContato = new SqlCommand($"INSERT INTO Contatos(UsuarioId, Telefone, Celular) " +
                                                            $"VALUES (@UsuarioId, @Telefone, @Celular) " +
                                                            $"SELECT CAST(scope_identity() AS int);",
@@ -192,8 +198,9 @@ namespace AdoCurso.API.Repositories
 
                 usuario.Contato.UsuarioId = usuario.Id;
                 usuario.Contato.Id = (int)commandContato.ExecuteScalar();
+                #endregion
 
-                // ADICIONANDO ENDEREÇO
+                #region Endereço
                 foreach (var endereco in usuario.EnderecosEntrega)
                 {
                     SqlCommand commandEndereco = new SqlCommand($"INSERT INTO EnderecosEntrega(UsuarioId, NomeEndereco, CEP, Estado, Cidade, Bairro, Endereco, Numero, Complemento) " +
@@ -215,8 +222,9 @@ namespace AdoCurso.API.Repositories
 
                     endereco.Id = (int)commandEndereco.ExecuteScalar();
                 }
+                #endregion
 
-                // ADICIONANDO DEPARTAMENTO
+                #region Departamento
                 foreach (var departamento in usuario.Departamentos)
                 {
                     SqlCommand commandDepartamento = new SqlCommand($"INSERT INTO UsuariosDepartamentos(UsuarioId, DepartamentoId) " +
@@ -231,6 +239,7 @@ namespace AdoCurso.API.Repositories
 
                     commandDepartamento.ExecuteNonQuery();
                 }
+                #endregion
 
                 transaction.Commit();
             }
@@ -253,33 +262,120 @@ namespace AdoCurso.API.Repositories
 
         public void Update(Usuario usuario)
         {
+            _connectionDB.Open();
+            SqlTransaction transaction = (SqlTransaction)_connectionDB.BeginTransaction(); // Instanciará uma transaction
             try
             {
-                SqlCommand command = new SqlCommand($"UPDATE Usuarios SET Nome = @Nome, Email = @Email, Sexo = @Sexo, RG = @RG, CPF = @CPF, NomeMae = @NomeMae, SituacaoCadastro = @SituacaoCadastro, DataCadastro = @DataCadastro " +
-                                                    $"WHERE Usuarios.Id = @Id;",
+                #region Usuario
+                SqlCommand commandUsuario = new SqlCommand($"UPDATE Usuarios SET Nome = @Nome, Email = @Email, Sexo = @Sexo, RG = @RG, CPF = @CPF, NomeMae = @NomeMae, SituacaoCadastro = @SituacaoCadastro, DataCadastro = @DataCadastro " +
+                                                           $"WHERE Usuarios.Id = @Id;",
                                                     (SqlConnection)_connectionDB);
 
+                commandUsuario.Transaction = transaction;
+
                 // Segurança contra SQL Injection
-                command.Parameters.AddWithValue("@Nome", usuario.Nome);
-                command.Parameters.AddWithValue("@Email", usuario.Email);
-                command.Parameters.AddWithValue("@Sexo", usuario.Sexo);
-                command.Parameters.AddWithValue("@RG", usuario.RG);
-                command.Parameters.AddWithValue("@CPF", usuario.CPF);
-                command.Parameters.AddWithValue("@NomeMae", usuario.NomeMae);
-                command.Parameters.AddWithValue("@SituacaoCadastro", usuario.SituacaoCadastro);
-                command.Parameters.AddWithValue("@DataCadastro", usuario.DataCadastro);
+                commandUsuario.Parameters.AddWithValue("@Nome", usuario.Nome);
+                commandUsuario.Parameters.AddWithValue("@Email", usuario.Email);
+                commandUsuario.Parameters.AddWithValue("@Sexo", usuario.Sexo);
+                commandUsuario.Parameters.AddWithValue("@RG", usuario.RG);
+                commandUsuario.Parameters.AddWithValue("@CPF", usuario.CPF);
+                commandUsuario.Parameters.AddWithValue("@NomeMae", usuario.NomeMae);
+                commandUsuario.Parameters.AddWithValue("@SituacaoCadastro", usuario.SituacaoCadastro);
+                commandUsuario.Parameters.AddWithValue("@DataCadastro", usuario.DataCadastro);
 
-                command.Parameters.AddWithValue("@Id", usuario.Id);
+                commandUsuario.Parameters.AddWithValue("@Id", usuario.Id);
 
-                _connectionDB.Open();
-                command.ExecuteNonQuery();
+                commandUsuario.ExecuteNonQuery();
+                #endregion
 
+                #region Contato
+                SqlCommand commandContato = new SqlCommand($"UPDATE Contatos SET UsuarioId = @UsuarioId, Telefone = @Telefone, Celular = @Celular " +
+                                                           $"WHERE Id = @Id;",
+                                                    (SqlConnection)_connectionDB);
+
+                commandContato.Transaction = transaction;
+
+                commandContato.Parameters.AddWithValue("@UsuarioId", usuario.Id);
+                commandContato.Parameters.AddWithValue("@Telefone", usuario.Contato.Telefone);
+                commandContato.Parameters.AddWithValue("@Celular", usuario.Contato.Celular);
+                commandContato.Parameters.AddWithValue("@Id", usuario.Contato.Id);
+
+                commandContato.ExecuteNonQuery();
+                #endregion
+
+                #region Endereço
+                SqlCommand commandEnderecoDelete = new SqlCommand($"DELETE FROM EnderecosEntrega WHERE UsuarioId = @UsuarioId;",
+                                                    (SqlConnection)_connectionDB);
+                commandEnderecoDelete.Parameters.AddWithValue("@UsuarioId", usuario.Id);
+
+                commandEnderecoDelete.Transaction = transaction;
+
+                commandEnderecoDelete.ExecuteNonQuery();
+
+                foreach (var endereco in usuario.EnderecosEntrega)
+                {
+                    SqlCommand commandEndereco = new SqlCommand($"INSERT INTO EnderecosEntrega(UsuarioId, NomeEndereco, CEP, Estado, Cidade, Bairro, Endereco, Numero, Complemento) " +
+                                          $"VALUES (@UsuarioId, @NomeEndereco, @CEP, @Estado, @Cidade, @Bairro, @Endereco, @Numero, @Complemento) " +
+                                          $"SELECT CAST(scope_identity() AS int);",
+                                          (SqlConnection)_connectionDB);
+
+                    commandEndereco.Transaction = transaction;
+
+                    commandEndereco.Parameters.AddWithValue("@UsuarioId", usuario.Id);
+                    commandEndereco.Parameters.AddWithValue("@NomeEndereco", endereco.NomeEndereco);
+                    commandEndereco.Parameters.AddWithValue("@CEP", endereco.CEP);
+                    commandEndereco.Parameters.AddWithValue("@Estado", endereco.Estado);
+                    commandEndereco.Parameters.AddWithValue("@Cidade", endereco.Cidade);
+                    commandEndereco.Parameters.AddWithValue("@Bairro", endereco.Bairro);
+                    commandEndereco.Parameters.AddWithValue("@Endereco", endereco.Endereco);
+                    commandEndereco.Parameters.AddWithValue("@Numero", endereco.Numero);
+                    commandEndereco.Parameters.AddWithValue("@Complemento", endereco.Complemento);
+
+                    endereco.Id = (int)commandEndereco.ExecuteScalar();
+                }
+                #endregion
+
+                #region Departamento
+                SqlCommand commandDepartamentoDelete = new SqlCommand($"DELETE FROM UsuariosDepartamentos WHERE UsuarioId = @UsuarioId;",
+                                                    (SqlConnection)_connectionDB);
+                commandDepartamentoDelete.Parameters.AddWithValue("@UsuarioId", usuario.Id);
+
+                commandDepartamentoDelete.Transaction = transaction;
+
+                commandDepartamentoDelete.ExecuteNonQuery();
+
+                foreach (var departamento in usuario.Departamentos)
+                {
+                    SqlCommand commandDepartamento = new SqlCommand($"INSERT INTO UsuariosDepartamentos(UsuarioId, DepartamentoId) " +
+                                                                    $"VALUES (@UsuarioId, @DepartamentoId) " +
+                                                                    $"SELECT CAST(scope_identity() AS int);",
+                                                                    (SqlConnection)_connectionDB);
+
+                    commandDepartamento.Transaction = transaction;
+
+                    commandDepartamento.Parameters.AddWithValue("@UsuarioId", usuario.Id);
+                    commandDepartamento.Parameters.AddWithValue("@DepartamentoId", departamento.Id);
+
+                    commandDepartamento.ExecuteNonQuery();
+                }
+                #endregion
+
+                transaction.Commit();
+            }
+            catch
+            {
+                try
+                {
+                    transaction.Rollback();
+                }
+                catch
+                {
+                }
+                throw new Exception($"Erro ao inserir dados no banco!");
             }
             finally
             {
-
                 _connectionDB.Close();
-
             }
         }
 
